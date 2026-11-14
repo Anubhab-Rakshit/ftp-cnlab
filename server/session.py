@@ -105,6 +105,7 @@ class FTPSession:
         root_dir: str,
         auth_mgr: AuthManager,
         logger: WireLogger,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ):
         self.sock = ctrl_socket
         self.addr = client_addr
@@ -125,7 +126,7 @@ class FTPSession:
         self.rnfr_path: Optional[str] = None
         self.is_running = True
         self.data_prot = "C" # 'C' = Cleartext, 'P' = Private (Encrypted)
-        self.ssl_context = ctrl_socket.server_context if hasattr(ctrl_socket, 'server_context') else None
+        self.ssl_context = ssl_context
 
     def send_raw(self, reply_text: str):
         """Sends an NVT/ASCII reply over the control socket and logs it."""
@@ -193,7 +194,13 @@ class FTPSession:
 
         # Pre-authentication commands
         if self.state != self.STATE_AUTHENTICATED:
-            if cmd == CMD_USER:
+            if cmd == "AUTH":
+                self.handle_AUTH(arg)
+            elif cmd == "PBSZ":
+                self.handle_PBSZ(arg)
+            elif cmd == "PROT":
+                self.handle_PROT(arg)
+            elif cmd == CMD_USER:
                 self.handle_USER(arg)
             elif cmd == CMD_PASS:
                 self.handle_PASS(arg)
@@ -615,9 +622,9 @@ class FTPSession:
             self.reply(R_550_FILE_NOT_FOUND_OR_NO_ACC, "Permission denied: read-only user.")
             return
         if self.current_user:
-            user_sandbox_dir = f"storage/server_root/{self.current_user.username}"
-            user_quota = 52428800 # 50 MB
-            current_usage = get_dir_size(user_sandbox_dir)
+            user_quota = getattr(self.current_user, 'quota_bytes', 52428800)
+            user_sandbox_dir = os.path.join(self.vfs.root_dir, self.current_user.username)
+            current_usage = get_dir_size(user_sandbox_dir) if os.path.exists(user_sandbox_dir) else 0
             if current_usage >= user_quota:
                 self.reply(552, "Exceeded storage allocation")
                 return
@@ -682,7 +689,8 @@ class FTPSession:
         )
 
     def handle_AUTH(self, arg: str):
-        if arg.strip().upper() == "TLS":
+        auth_type = arg.strip().upper()
+        if auth_type in ("TLS", "SSL", "TLS-C", "TLS-P"):
             if not getattr(self, 'ssl_context', None):
                 self.reply(504, "TLS not configured on server.")
                 return

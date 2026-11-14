@@ -76,6 +76,7 @@ class FTPServer:
                     root_dir=self.root_dir,
                     auth_mgr=self.auth_mgr,
                     logger=self.logger,
+                    ssl_context=self.ssl_context,
                 )
                 self.active_sessions.append(session)
 
