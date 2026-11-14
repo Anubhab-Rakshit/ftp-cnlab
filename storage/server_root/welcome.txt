@@ -1,0 +1,7 @@
+Welcome to the RFC 959 FTP Server!
+Computer Networks Lab Project
+Features:
+- Dual channel architecture (Control & Data)
+- Active (PORT) & Passive (PASV) modes
+- Real-time chunked byte streaming
+- SHA-256 cryptographically verified integrity

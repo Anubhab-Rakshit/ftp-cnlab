@@ -1,0 +1,5 @@
+# RFC 959 FTP Client-Server Implementation
+# This implementation uses strictly Python standard libraries (socket, threading, hashlib, os, sys).
+# Zero external 3rd-party dependencies are required.
+# Python version requirement: Python >= 3.8
+
